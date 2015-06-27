@@ -88,7 +88,7 @@ func printMissingCredentialsMessage() {
 	os.Exit(1)
 }
 
-func login(key string, secret string) (Credentials, error) {
+func login(client *oauth.Client) (Credentials, error) {
 	credentials := Credentials{}
 	credentials.load()
 	if credentials.AccessToken != "" {
@@ -96,7 +96,7 @@ func login(key string, secret string) (Credentials, error) {
 	}
 	username := read("Username: ")
 	password := read("password: ")
-	credentials, err := requestAccessToken(key, secret, username, password)
+	credentials, err := requestAccessToken(client, username, password)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -107,8 +107,7 @@ func login(key string, secret string) (Credentials, error) {
 	return credentials, nil
 }
 
-func bookmark(key string, secret string, credentials Credentials, uri string) error {
-	client := oauth.Client{Credentials: oauth.Credentials{Token: key, Secret: secret}}
+func bookmark(client *oauth.Client, credentials Credentials, uri string) error {
 	data := url.Values{
 		"url": {uri},
 	}
@@ -127,9 +126,8 @@ func bookmark(key string, secret string, credentials Credentials, uri string) er
 	return nil
 }
 
-func requestAccessToken(key string, secret string, username string, password string) (Credentials, error) {
+func requestAccessToken(client *oauth.Client, username string, password string) (Credentials, error) {
 	var credentials Credentials
-	client := oauth.Client{Credentials: oauth.Credentials{Token: key, Secret: secret}}
 	data := url.Values{
 		"x_auth_username": {username},
 		"x_auth_password": {password},
@@ -170,12 +168,14 @@ func main() {
 	if key == "" || secret == "" {
 		printMissingCredentialsMessage()
 	}
-	credentials, err := login(key, secret)
+	client := oauth.Client{Credentials: oauth.Credentials{Token: key, Secret: secret}}
+	credentials, err := login(&client)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = bookmark(key, secret, credentials, url)
+	err = bookmark(&client, credentials, url)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("Successfully bookmarked %s", url)
 }
