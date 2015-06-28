@@ -124,6 +124,9 @@ func main() {
 	if resp.StatusCode == 409 {
 		printError(fmt.Errorf("The URL %s is already bookmarked", url))
 	}
+	if resp.StatusCode == 400 {
+		usage()
+	}
 	if err != nil {
 		printError(err)
 	}
