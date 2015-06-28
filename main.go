@@ -82,7 +82,7 @@ func login(client *readability.Client) (readerClient *readability.ReaderClient, 
 		return client.NewReaderClient(credentials.AccessToken, credentials.AccessTokenSecret), nil
 	}
 	username := read("Username: ")
-	password := read("password: ")
+	password := read("Password: ")
 	token, secret, err := client.Login(username, password)
 	if err != nil {
 		return readerClient, err
