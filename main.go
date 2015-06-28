@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 
+	"github.com/mgutz/ansi"
 	"github.com/robinjmurphy/go-readability-api/readability"
 )
 
@@ -59,14 +60,14 @@ func (credentials *Credentials) load() error {
 	return nil
 }
 
-func read(message string) string {
+func read(message string) (string, error) {
 	fmt.Print(message)
 	var value string
 	_, err := fmt.Scanln(&value)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
-	return value
+	return value, nil
 }
 
 func printMissingCredentialsMessage() {
@@ -81,11 +82,11 @@ func login(client *readability.Client) (readerClient *readability.ReaderClient, 
 	if credentials.AccessToken != "" {
 		return client.NewReaderClient(credentials.AccessToken, credentials.AccessTokenSecret), nil
 	}
-	username := read("Username: ")
-	password := read("Password: ")
+	username, _ := read("Username: ")
+	password, _ := read("Password: ")
 	token, secret, err := client.Login(username, password)
 	if err != nil {
-		return readerClient, err
+		return readerClient, errors.New("Check your username or password and try again")
 	}
 	credentials.AccessToken = token
 	credentials.AccessTokenSecret = secret
@@ -94,6 +95,11 @@ func login(client *readability.Client) (readerClient *readability.ReaderClient, 
 		return readerClient, err
 	}
 	return client.NewReaderClient(token, secret), nil
+}
+
+func printError(err error) {
+	fmt.Printf(ansi.Color("× %s\n", "red"), err.Error())
+	os.Exit(1)
 }
 
 func main() {
@@ -112,14 +118,14 @@ func main() {
 	client := readability.NewClient(key, secret)
 	reader, err := login(client)
 	if err != nil {
-		log.Fatal(err)
+		printError(err)
 	}
 	resp, err := reader.AddBookmark(url)
 	if resp.StatusCode == 409 {
-		log.Fatalf("The URL %s is already bookmarked", url)
+		printError(fmt.Errorf("The URL %s is already bookmarked", url))
 	}
 	if err != nil {
-		log.Fatal(err)
+		printError(err)
 	}
-	fmt.Printf("Successfully bookmarked %s", url)
+	fmt.Printf(ansi.Color("✓ Successfully bookmarked %s", "green"), url)
 }
