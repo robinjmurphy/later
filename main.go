@@ -114,7 +114,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = reader.AddBookmark(url)
+	resp, err := reader.AddBookmark(url)
+	if resp.StatusCode == 409 {
+		log.Fatalf("The URL %s is already bookmarked", url)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
