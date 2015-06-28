@@ -2,21 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"os/user"
 
-	"github.com/garyburd/go-oauth/oauth"
+	"github.com/robinjmurphy/go-readability-api/readability"
 )
-
-const accessTokenUrl = "https://www.readability.com/api/rest/v1/oauth/access_token/"
-const bookmarksUrl = "https://www.readability.com/api/rest/v1/bookmarks"
 
 type Credentials struct {
 	AccessToken       string
@@ -65,13 +59,6 @@ func (credentials *Credentials) load() error {
 	return nil
 }
 
-func (credentials *Credentials) asOAuth() oauth.Credentials {
-	return oauth.Credentials{
-		Token:  credentials.AccessToken,
-		Secret: credentials.AccessTokenSecret,
-	}
-}
-
 func read(message string) string {
 	fmt.Print(message)
 	var value string
@@ -88,71 +75,25 @@ func printMissingCredentialsMessage() {
 	os.Exit(1)
 }
 
-func login(client *oauth.Client) (Credentials, error) {
+func login(client *readability.Client) (readerClient *readability.ReaderClient, err error) {
 	credentials := Credentials{}
 	credentials.load()
 	if credentials.AccessToken != "" {
-		return credentials, nil
+		return client.NewReaderClient(credentials.AccessToken, credentials.AccessTokenSecret), nil
 	}
 	username := read("Username: ")
 	password := read("password: ")
-	credentials, err := requestAccessToken(client, username, password)
+	token, secret, err := client.Login(username, password)
 	if err != nil {
-		log.Fatal(err)
+		return readerClient, err
 	}
+	credentials.AccessToken = token
+	credentials.AccessTokenSecret = secret
 	err = credentials.save()
 	if err != nil {
-		log.Fatal(err)
+		return readerClient, err
 	}
-	return credentials, nil
-}
-
-func bookmark(client *oauth.Client, credentials Credentials, uri string) error {
-	data := url.Values{
-		"url": {uri},
-	}
-	oauthCredentials := credentials.asOAuth()
-	client.SignForm(&oauthCredentials, "POST", bookmarksUrl, data)
-	resp, err := http.PostForm(bookmarksUrl, data)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode == 409 {
-		return errors.New("URL is already bookmarked.")
-	}
-	if resp.StatusCode != 202 {
-		return errors.New(fmt.Sprintf("Failed to bookmark %s. Status code %d.", uri, resp.StatusCode))
-	}
-	return nil
-}
-
-func requestAccessToken(client *oauth.Client, username string, password string) (Credentials, error) {
-	var credentials Credentials
-	data := url.Values{
-		"x_auth_username": {username},
-		"x_auth_password": {password},
-		"x_auth_mode":     {"client_auth"},
-	}
-	client.SignForm(nil, "POST", accessTokenUrl, data)
-	resp, err := http.PostForm(accessTokenUrl, data)
-	if err != nil {
-		return credentials, err
-	}
-	if resp.StatusCode != 200 {
-		return credentials, errors.New("Login failed. Please check your username and password.")
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if (err) != nil {
-		return credentials, err
-	}
-	formData, err := url.ParseQuery(string(body))
-	if (err) != nil {
-		return credentials, err
-	}
-	return Credentials{
-		AccessToken:       formData.Get("oauth_token"),
-		AccessTokenSecret: formData.Get("oauth_token_secret"),
-	}, nil
+	return client.NewReaderClient(token, secret), nil
 }
 
 func main() {
@@ -168,12 +109,12 @@ func main() {
 	if key == "" || secret == "" {
 		printMissingCredentialsMessage()
 	}
-	client := oauth.Client{Credentials: oauth.Credentials{Token: key, Secret: secret}}
-	credentials, err := login(&client)
+	client := readability.NewClient(key, secret)
+	reader, err := login(client)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = bookmark(&client, credentials, url)
+	_, err = reader.AddBookmark(url)
 	if err != nil {
 		log.Fatal(err)
 	}
