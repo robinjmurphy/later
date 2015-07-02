@@ -19,7 +19,7 @@ type Credentials struct {
 }
 
 func usage() {
-	fmt.Println("usage: later <url>")
+	fmt.Println("Usage: later <url>")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
