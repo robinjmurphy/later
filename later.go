@@ -115,7 +115,7 @@ func main() {
 	if key == "" || secret == "" {
 		printMissingCredentialsMessage()
 	}
-	client := readability.NewClient(key, secret)
+	client := readability.NewClient(key, secret, "")
 	reader, err := login(client)
 	if err != nil {
 		printError(err)
