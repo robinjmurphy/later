@@ -76,15 +76,20 @@ func printMissingCredentialsMessage() {
 	os.Exit(1)
 }
 
-func login(client *readability.Client) (readerClient *readability.ReaderClient, err error) {
+func login(consumerKey, consumerSecret string) (readerClient *readability.ReaderClient, err error) {
 	credentials := Credentials{}
 	credentials.load()
 	if credentials.AccessToken != "" {
-		return client.NewReaderClient(credentials.AccessToken, credentials.AccessTokenSecret), nil
+		return readability.NewReaderClient(
+			consumerKey,
+			consumerSecret,
+			credentials.AccessToken,
+			credentials.AccessTokenSecret,
+		), nil
 	}
 	username, _ := read("Username: ")
 	password, _ := read("Password: ")
-	token, secret, err := client.Login(username, password)
+	token, secret, err := readability.Login(consumerKey, consumerSecret, username, password)
 	if err != nil {
 		return readerClient, errors.New("Check your username or password and try again")
 	}
@@ -94,7 +99,7 @@ func login(client *readability.Client) (readerClient *readability.ReaderClient, 
 	if err != nil {
 		return readerClient, err
 	}
-	return client.NewReaderClient(token, secret), nil
+	return readability.NewReaderClient(consumerKey, consumerSecret, token, secret), nil
 }
 
 func printError(err error) {
@@ -115,8 +120,7 @@ func main() {
 	if key == "" || secret == "" {
 		printMissingCredentialsMessage()
 	}
-	client := readability.NewClient(key, secret, "")
-	reader, err := login(client)
+	reader, err := login(key, secret)
 	if err != nil {
 		printError(err)
 	}
